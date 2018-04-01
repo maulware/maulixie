@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+# use: $0 [dev]
 #
 
 if [ $(whoami) -ne "root" ]; then
@@ -7,12 +8,21 @@ if [ $(whoami) -ne "root" ]; then
   exit 1
 fi
 
-for p in $(seq 10 42); do
-  ip link add link eth0 address 00:11:11:11:11:${p} eth0.${p} type macvlan
-done
+spawn=$1
+: ${spawn:=eth0}
 
-for p in $(seq 10 42); do ip link set "eth0.${p}" netns pixie; done
+ip netns | grep -q pixie || echo "create netns pixie" && ip netns add pixie
 
+ip netns exec pixie ip a | grep -q $spawn || (
+  echo "create off spawn of $spawn and set in netns pixie"
+  for p in $(seq 10 42); do
+    ip link add link ${spawn} address 00:11:11:11:11:${p} ${spawn}.${p} type macvlan
+  done
+  for p in $(seq 10 42); do ip link set "${spawn}.${p}" netns pixie; done
+)
+
+echo "set up links and dhclient IP"
 for p in $(seq 10 42); do
-  ( ip netns exec pixie ip link set up eth0.${p} && ip netns exec pixie dhclient  -v eth0.${p} ) &
+  echo -n "${spawn}.${p}"
+  ( ip netns exec pixie ip link set up ${spawn}.${p} && ip netns exec pixie dhclient  -v ${spawn}.${p} ) &
 done
