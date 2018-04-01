@@ -132,15 +132,17 @@ printf("Size: %d %d\n",xmax,ymax);
 //  exit;
 
   char pri[100];
+  png_bytep row;
+  png_bytep px;
   sprintf(pri,"OFFSET 0 0\n");
   send(sockfd, pri, strlen(pri), 0);
   while(1)
   {
- //   #pragma omp parallel for schedule(dynamic,1) collapse(2)
+    #pragma omp parallel for schedule(dynamic,1) collapse(2)
     for(int y=0;y<ymax;y++){
-      png_bytep row = row_pointers[y];
       for(int x=0;x<xmax;x++){
-        png_bytep px = &(row[x * 4]);
+        row = row_pointers[y];
+        px = &(row[x * 4]);
         sprintf(pri,"PX %d %d %02x%02x%02x\n",x,y,px[0], px[1], px[2]);
         send(sockfd, pri, strlen(pri), 0);
       }
