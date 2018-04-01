@@ -99,6 +99,13 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
   }
 
+  // Bind to a specific network interface (and optionally a specific local port)
+  struct sockaddr_in localaddr;
+  localaddr.sin_family = AF_INET;
+  localaddr.sin_addr.s_addr = inet_addr(argv[0]);
+  localaddr.sin_port = 0;  // Any local port will do
+  bind(sockfd, (struct sockaddr *)&localaddr, sizeof(localaddr));
+
   inet_pton(AF_INET,"94.45.232.48", &(sockaddr_in.sin_addr));
   sockaddr_in.sin_port=htons(server_port);
   sockaddr_in.sin_family=AF_INET;
@@ -134,17 +141,21 @@ printf("Size: %d %d\n",xmax,ymax);
   char pri[100];
   png_bytep row;
   png_bytep px;
-  sprintf(pri,"OFFSET 0 0\n");
+  sprintf(pri,"OFFSET 300 100\n");
   send(sockfd, pri, strlen(pri), 0);
+
+  int p_step=4;
   while(1)
   {
-    #pragma omp parallel for schedule(dynamic,1) collapse(2)
-    for(int y=0;y<ymax;y++){
-      for(int x=0;x<xmax;x++){
-        row = row_pointers[y];
-        px = &(row[x * 4]);
-        sprintf(pri,"PX %d %d %02x%02x%02x\n",x,y,px[0], px[1], px[2]);
-        send(sockfd, pri, strlen(pri), 0);
+  for(int p=0;p<p_step;p++){
+  #pragma omp parallel for schedule(dynamic,1) collapse(2)
+    for(int y=p;y<ymax;y+=p_step){
+      for(int x=p;x<xmax;x+=p_step){
+          row = row_pointers[y];
+          px = &(row[x * 4]);
+          sprintf(pri,"PX %d %d %02x%02x%02x\n",x,y,px[0], px[1], px[2]);
+          send(sockfd, pri, strlen(pri), 0);
+        }
       }
     }
   }
