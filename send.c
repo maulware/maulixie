@@ -1,10 +1,7 @@
 #define _XOPEN_SOURCE 700
 
-#include <assert.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <arpa/inet.h>
 #include <netdb.h> /* getprotobyname */
@@ -20,13 +17,10 @@ int main(int argc, char **argv)
   char protoname[] = "tcp";
   struct protoent *protoent;
   char *server_hostname = "94.45.232.48";
-  char *user_input = NULL;
   in_addr_t in_addr;
   in_addr_t server_addr;
   int sockfd;
   size_t getline_buffer = 0;
-  ssize_t nbytes_read, i, user_input_len;
-  struct hostent *hostent;
   /* This is the struct used by INet addresses. */
   struct sockaddr_in sockaddr_in;
   unsigned short server_port = 1234;
