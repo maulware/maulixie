@@ -12,6 +12,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <omp.h>
+
 int main(int argc, char **argv)
 {
   char buffer[BUFSIZ];
@@ -40,11 +42,9 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
   }
 
-//  sockaddr_in.sin_addr=server_addr;
   inet_pton(AF_INET,"94.45.232.48", &(sockaddr_in.sin_addr));
   sockaddr_in.sin_port=htons(server_port);
   sockaddr_in.sin_family=AF_INET;
-  bzero(&(sockaddr_in.sin_zero), 8); 
 
   if (connect(sockfd, (struct sockaddr*)&sockaddr_in, sizeof(sockaddr_in)) == -1) {
       perror("connect");
@@ -56,7 +56,9 @@ int main(int argc, char **argv)
   char pri[1000];
   sprintf(pri,"OFFSET 30 1000\n");
   send(sockfd, pri, strlen(pri), 0);
-  while(1){
+  while(1)
+  {
+    #pragma omp parallel for schedule(dynamic,1) collapse(2)
     for(int x=0;x<40;x++){
       for(int y=0;y<40;y++){
         sprintf(pri,"PX %d %d 838119\n",x,y);
