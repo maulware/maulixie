@@ -9,14 +9,16 @@ if [ $(whoami) -ne "root" ]; then
 fi
 
 spawn=$1
+prefix=$2
 : ${spawn:=eth0}
+: ${prefix:="00:11:11:11:11"}
 
 ip netns | grep -q pixie || echo "create netns pixie" && ip netns add pixie
 
 ip netns exec pixie ip a | grep -q $spawn || (
   echo "create off spawn of $spawn and set in netns pixie"
   for p in $(seq 10 42); do
-    ip link add link ${spawn} address 00:11:11:11:11:${p} ${spawn}.${p} type macvlan
+    ip link add link ${spawn} address ${prefix}:${p} ${spawn}.${p} type macvlan
   done
   for p in $(seq 10 42); do ip link set "${spawn}.${p}" netns pixie; done
 )
