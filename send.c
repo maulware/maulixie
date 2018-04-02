@@ -98,7 +98,7 @@ png_byte color_type;
 png_byte bit_depth;
 png_bytep *row_pointers;
 
-void openFile(char *file)
+int openFile(char *file)
 {
 
   FILE *fp = fopen(file, "rb");
@@ -151,9 +151,10 @@ void openFile(char *file)
   png_read_image(png, row_pointers);
   fclose(fp);
 
+  return 0;
 }
 
-void *flood(struct in_addr *ip)
+int *flood(struct in_addr *ip)
 {
   struct protoent *protoent;
   in_addr_t in_addr;
@@ -219,10 +220,11 @@ printf("Size: %d %d\n",xmax,ymax);
   int p_step=4;
   while(1)
   {
-  for(int p=0;p<p_step;p++){
+  for(int p_x=0;p_x<p_step;p_x++){
+  for(int p_y=0;p_y<p_step;p_y++){
 //    #pragma omp parallel for schedule(dynamic,1) collapse(2)
-    for(int y=p;y<ymax;y+=p_step){
-      for(int x=p;x<xmax;x+=p_step){
+    for(int y=p_y;y<ymax;y+=p_step){
+      for(int x=p_x;x<xmax;x+=p_step){
           row = row_pointers[y];
           px = &(row[x * 4]);
           //ignore pic black
@@ -241,6 +243,7 @@ printf("Size: %d %d\n",xmax,ymax);
       }
     }
   }
+  }
 }
 
 int main(int argc, char **argv)
@@ -255,7 +258,11 @@ int main(int argc, char **argv)
 
   getIPs();
 
-  openFile(argv[1]);
+  int err = openFile(argv[1]);
+
+  if(err!=0){
+    return EXIT_FAILURE;
+  }
 
   pthread_t tid;
   pthread_t tids[100];
