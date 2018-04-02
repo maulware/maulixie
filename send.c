@@ -1,18 +1,92 @@
-#define _XOPEN_SOURCE 700
+//#define _XOPEN_SOURCE 700
 
 #include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <stdlib.h>
 
 #include <arpa/inet.h>
 #include <netdb.h> /* getprotobyname */
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <string.h>
 
 #include <omp.h>
 #include <png.h>
 #include <pthread.h>
+
+static const char * flags(int sd, const char * name)
+{
+    static char buf[1024];
+
+    static struct ifreq ifreql;
+    strcpy(ifreql.ifr_name, name);
+
+    int r = ioctl(sd, SIOCGIFFLAGS, (char *)&ifreql);
+    assert(r == 0);
+
+    int l = 0;
+#define FLAG(b) if(ifreql.ifr_flags & b) l += snprintf(buf + l, sizeof(buf) - l, #b " ")
+    FLAG(IFF_UP);
+    FLAG(IFF_BROADCAST);
+    FLAG(IFF_DEBUG);
+    FLAG(IFF_LOOPBACK);
+    FLAG(IFF_POINTOPOINT);
+    FLAG(IFF_RUNNING);
+    FLAG(IFF_NOARP);
+    FLAG(IFF_PROMISC);
+    FLAG(IFF_NOTRAILERS);
+    FLAG(IFF_ALLMULTI);
+    FLAG(IFF_MASTER);
+    FLAG(IFF_SLAVE);
+    FLAG(IFF_MULTICAST);
+    FLAG(IFF_PORTSEL);
+    FLAG(IFF_AUTOMEDIA);
+    FLAG(IFF_DYNAMIC);
+#undef FLAG
+
+    return buf;
+}
+
+int numips=0;
+//just set to 100
+struct in_addr local_ips[100];
+struct in_addr* getIPs(void)
+{
+//thx: https://stackoverflow.com/questions/1160963/how-to-enumerate-all-ip-addresses-attached-to-a-machine-in-posix-c/1161018#1161018
+    static struct ifreq ifreqs[32];
+    struct ifconf ifconf;
+
+    memset(&ifconf, 0, sizeof(ifconf));
+    ifconf.ifc_req = ifreqs;
+    ifconf.ifc_len = sizeof(ifreqs);
+
+    int sd = socket(PF_INET, SOCK_STREAM, 0);
+    assert(sd >= 0);
+
+    int r = ioctl(sd, SIOCGIFCONF, (char *)&ifconf);
+    assert(r == 0);
+
+    numips=ifconf.ifc_len/sizeof(struct ifreq);
+
+    printf("got %d interfaces\n", numips);
+    for(int i = 0; i < numips; ++i)
+    {
+        printf("%s: %s\n", ifreqs[i].ifr_name, inet_ntoa(((struct sockaddr_in *)&ifreqs[i].ifr_addr)->sin_addr));
+//        printf(" flags: %s\n", flags(sd, ifreqs[i].ifr_name));
+//	sprintf(local_ips[i],"%s\0", inet_ntoa(((struct sockaddr_in *)&ifreqs[i].ifr_addr)->sin_addr));
+	local_ips[i]=((struct sockaddr_in *)&ifreqs[i].ifr_addr)->sin_addr;
+    }
+
+    close(sd);
+
+    return local_ips;
+}
 
 char buffer[BUFSIZ];
 char protoname[] = "tcp";
@@ -79,7 +153,7 @@ void openFile(char *file)
 
 }
 
-void *flood(void *param)
+void *flood(struct in_addr *ip)
 {
   struct protoent *protoent;
   in_addr_t in_addr;
@@ -89,9 +163,13 @@ void *flood(void *param)
   /* This is the struct used by INet addresses. */
   struct sockaddr_in sockaddr_in;
 
-  char *ip=(char*) param;
+//pthread_t   tid;
+//tid = pthread_getthreadid_np();
+//printf("tid: %d\n", tid);
 
-  printf("starting connection via %s\n", ip);
+//  struct in_addr *ip = (struct in_addr*) param;
+
+  printf("starting connection via %s\n", inet_ntoa(*ip));
 
   protoent = getprotobyname(protoname);
   if (protoent == NULL) {
@@ -108,7 +186,8 @@ void *flood(void *param)
   struct sockaddr_in localaddr;
   localaddr.sin_family = AF_INET;
   //localaddr.sin_addr.s_addr = inet_addr(argv[0]);
-  inet_pton(AF_INET, ip, &(localaddr.sin_addr));
+  //inet_pton(AF_INET, ip, &(localaddr.sin_addr));
+  localaddr.sin_addr=*ip;
   localaddr.sin_port = 0;  // Any local port will do
   if (bind(sockfd, (struct sockaddr *)&localaddr, sizeof(localaddr)) == -1) {
     perror("bind");
@@ -167,17 +246,28 @@ printf("Size: %d %d\n",xmax,ymax);
 int main(int argc, char **argv)
 {
 
-  openFile("/home/mauli/Pictures/vector_laughing_man_logo_by_ericdbz.png");
+  if(argc<2){
+    perror("arg 1 (pic path) missing");
+    return EXIT_FAILURE;
+  }
+
+  char* picture = argv[1];
+
+  getIPs();
+
+  openFile(argv[1]);
 
   pthread_t tid;
-  pthread_t tids[argc-1];
+  pthread_t tids[100];
 
-  printf("Starting %i threads\n", argc-1);
-  for(int i=1; i<argc-1; i++){
-    pthread_create(&tid, NULL, flood, (void *)argv[i+1]);
+  printf("Starting %i threads\n", numips);
+//  flood(local_ips[0]);
+  for(int i=0; i<numips; i++){
+    pthread_create(&tid, NULL, flood, &local_ips[i]);
     tids[i]=tid;
   }
 
-  flood(argv[1]);  
+  for (int i = 0; i < numips; i++)
+       pthread_join(tids[i], NULL);
 
 }
