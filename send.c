@@ -20,7 +20,7 @@
 #include <png.h>
 #include <pthread.h>
 
-static const char * flags(int sd, const char * name)
+//static const char * flags(int sd, const char * name)
 {
     static char buf[1024];
 
@@ -90,7 +90,10 @@ struct in_addr* getIPs(void)
 
 char buffer[BUFSIZ];
 char protoname[] = "tcp";
-char *server_hostname = "94.45.232.48";
+//char *server_hostname = "94.45.232.48";
+//char *server_hostname = "172.20.57.23";
+//char *server_hostname = "127.0.0.1";
+char *server_hostname = "151.217.177.136";
 unsigned short server_port = 1234;
 
 int width, height;
@@ -214,7 +217,7 @@ printf("Size: %d %d\n",xmax,ymax);
   char pri[100];
   png_bytep row;
   png_bytep px;
-  sprintf(pri,"OFFSET 300 100\n");
+  sprintf(pri,"OFFSET 20 20\n");
   send(sockfd, pri, strlen(pri), 0);
 
   int p_step=4;
@@ -234,8 +237,8 @@ printf("Size: %d %d\n",xmax,ymax);
 //	  if(px[0]==255 && px[1] == 255 && px[2] == 255)
 //            continue;
           //ignore blue 084c74
-	  if(px[0]==0x08 && px[1] == 0x4c && px[2] == 0x74)
-            continue;
+//	  if(px[0]==0x08 && px[1] == 0x4c && px[2] == 0x74)
+//            continue;
 	  
  	  sprintf(pri,"PX %d %d %02x%02x%02x\n",x,y,px[0], px[1], px[2]);
           send(sockfd, pri, strlen(pri), MSG_NOSIGNAL);
@@ -266,10 +269,11 @@ int main(int argc, char **argv)
 
   pthread_t tid;
   pthread_t tids[100];
-
+  numips=4;
   printf("Starting %i threads\n", numips);
 //  flood(local_ips[0]);
-  for(int i=0; i<numips; i++){
+  for(int i=1; i<numips; i++){
+//  for(int i=1; i<2; i++){
     pthread_create(&tid, NULL, flood, &local_ips[i]);
     tids[i]=tid;
   }

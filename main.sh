@@ -7,8 +7,8 @@
 COLOR=$1
 IP=$2
 PORT=$3
-: ${IP:="94.45.232.48"}
-: ${PORT:="1234"}
+: ${IP:="127.0.0.1"}
+: ${PORT:="1337"}
 : ${COLOR:="993721"}
 
 echo "http://${IP}:${PORT}"
@@ -35,10 +35,10 @@ function pech()
   fi
 }
 
-PX=30
-PY=730
-XMAX=1920
-YMAX=1080
+PX=300
+PY=300
+XMAX=100
+YMAX=100
 XDIR=1
 YDIR=1
 function move()
@@ -102,6 +102,6 @@ openSocket
 
 pech "OFFSET $PX $PY"
 while [ 1 -eq 1 ]; do
-  sparse 200 200 $COLOR
+  sparse 10 10 $COLOR
 #  move
 done
